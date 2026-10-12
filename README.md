@@ -37,10 +37,9 @@ by Git. The checked-in `.env.example` intentionally contains no login details.
 
 ## Deploy with GitHub Pages
 
-The workflow in `.github/workflows/deploy.yml` builds, tests, and deploys the
-site to GitHub Pages on every push to `main`. In the repository's **Settings →
-Pages**, select **GitHub Actions** as the build and deployment source. The site
-is built without MQTT login credentials by design. Do not add username or
+The workflow in `.github/workflows/deploy.yml` builds, tests, enables Pages,
+and deploys the site on every push to `main`. The site is built without MQTT
+login credentials by design. Do not add username or
 password as Actions secrets for this static client: the values would be
 included in publicly downloadable browser JavaScript. To show live readings on
 the public site, use a broker account with public read-only access restricted
