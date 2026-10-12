@@ -20,6 +20,51 @@ export interface TankStatus {
   color: string;
 }
 
+export interface TankNotificationCycle {
+  emptyLatched: boolean;
+  criticalLowLatched: boolean;
+  almostFullLatched: boolean;
+  fullLatched: boolean;
+}
+
+export type TankNotificationKind = 'empty' | 'critical-low' | 'almost-full' | 'full';
+
+export function advanceTankNotificationCycle(
+  cycle: TankNotificationCycle,
+  level: number,
+  notificationsEnabled: boolean,
+): { cycle: TankNotificationCycle; notification: TankNotificationKind | null } {
+  const nextCycle = {
+    emptyLatched: level <= 0 && cycle.emptyLatched,
+    criticalLowLatched: level > 0 && level <= 20 && cycle.criticalLowLatched,
+    almostFullLatched: level >= 90 && cycle.almostFullLatched,
+    fullLatched: level >= 100 && cycle.fullLatched,
+  };
+
+  if (!notificationsEnabled) return { cycle: nextCycle, notification: null };
+
+  if (level <= 0 && !nextCycle.emptyLatched) {
+    nextCycle.emptyLatched = true;
+    return { cycle: nextCycle, notification: 'empty' };
+  }
+  if (level > 0 && level <= 20 && !nextCycle.criticalLowLatched) {
+    nextCycle.criticalLowLatched = true;
+    return { cycle: nextCycle, notification: 'critical-low' };
+  }
+  if (level >= 100) {
+    nextCycle.almostFullLatched = true;
+    if (!nextCycle.fullLatched) {
+      nextCycle.fullLatched = true;
+      return { cycle: nextCycle, notification: 'full' };
+    }
+  } else if (level >= 90 && !nextCycle.almostFullLatched) {
+    nextCycle.almostFullLatched = true;
+    return { cycle: nextCycle, notification: 'almost-full' };
+  }
+
+  return { cycle: nextCycle, notification: null };
+}
+
 export function toFiniteNumber(value: unknown): number | null {
   const number =
     typeof value === 'number'
@@ -130,11 +175,11 @@ export function buildNotificationContent(
 ): { title: string; body: string } {
   const { level, percent, litres, percentText } = getTankMetrics(distance);
   const title =
-    percent <= 0
+    level <= 0
       ? 'Tank empty'
-      : percent <= 20
+      : level <= 20
         ? 'Tank critically low'
-        : percent >= 100
+        : level >= 100
           ? 'Tank full'
           : percent >= 90
             ? 'Tank almost full'

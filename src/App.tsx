@@ -13,7 +13,9 @@ import {
   FULL_DISTANCE,
   STALE_AFTER_MS,
   TANK_CAPACITY,
+  advanceTankNotificationCycle,
   type SensorReading,
+  type TankNotificationCycle,
 } from './tank';
 
 type ConnectionState = 'connecting' | 'connected' | 'offline';
@@ -23,6 +25,10 @@ const username = import.meta.env.VITE_MQTT_USERNAME ?? '';
 const password = import.meta.env.VITE_MQTT_PASSWORD ?? '';
 const topic = import.meta.env.VITE_MQTT_TOPIC?.trim() || 'water_tank/telemetry';
 const alarmCycleKey = 'tank_full_alarm_cycle_latched';
+const emptyNotificationCycleKey = 'tank_empty_notification_cycle_latched';
+const criticalLowNotificationCycleKey = 'tank_critical_low_notification_cycle_latched';
+const fullNotificationCycleKey = 'tank_full_notification_cycle_latched';
+const almostFullNotificationCycleKey = 'tank_almost_full_notification_cycle_latched';
 const missingConfigMessage = import.meta.env.DEV
   ? 'Set VITE_MQTT_URL in your local .env file to connect'
   : 'Live tank connection is not configured';
@@ -124,6 +130,12 @@ function App() {
   const alertsEnabledRef = useRef(false);
   const alarmAudioRef = useRef<HTMLAudioElement | null>(null);
   const alarmLatchedRef = useRef(false);
+  const notificationCycleRef = useRef<TankNotificationCycle>({
+    emptyLatched: false,
+    criticalLowLatched: false,
+    almostFullLatched: false,
+    fullLatched: false,
+  });
   const vibrationTimerRef = useRef<number | null>(null);
   const toastTimerRef = useRef<number | null>(null);
 
@@ -190,11 +202,46 @@ function App() {
         startAlarm();
       }
 
+      const notificationsEnabled =
+        notificationPermission === 'granted' && document.visibilityState === 'visible';
+      const previousNotificationCycle = notificationCycleRef.current;
+      const { cycle: nextNotificationCycle, notification } = advanceTankNotificationCycle(
+        previousNotificationCycle,
+        level,
+        notificationsEnabled,
+      );
+      notificationCycleRef.current = nextNotificationCycle;
+
       if (
-        notificationPermission === 'granted' &&
-        document.visibilityState === 'visible' &&
-        level >= 90
+        previousNotificationCycle.emptyLatched !== nextNotificationCycle.emptyLatched ||
+        previousNotificationCycle.criticalLowLatched !== nextNotificationCycle.criticalLowLatched ||
+        previousNotificationCycle.fullLatched !== nextNotificationCycle.fullLatched ||
+        previousNotificationCycle.almostFullLatched !== nextNotificationCycle.almostFullLatched
       ) {
+        try {
+          window.localStorage.setItem(
+            emptyNotificationCycleKey,
+            String(nextNotificationCycle.emptyLatched),
+          );
+          window.localStorage.setItem(
+            criticalLowNotificationCycleKey,
+            String(nextNotificationCycle.criticalLowLatched),
+          );
+          window.localStorage.setItem(
+            fullNotificationCycleKey,
+            String(nextNotificationCycle.fullLatched),
+          );
+          window.localStorage.setItem(
+            almostFullNotificationCycleKey,
+            String(nextNotificationCycle.almostFullLatched),
+          );
+        } catch (storageError) {
+          console.error('Unable to persist tank notification cycles:', storageError);
+          showToast('Could not save tank notification history on this device.');
+        }
+      }
+
+      if (notification !== null) {
         const content = buildNotificationContent(nextReading.distance, nextReading.updated);
         try {
           new Notification(content.title, { body: content.body, icon: './icon.svg' });
@@ -216,9 +263,17 @@ function App() {
   useEffect(() => {
     try {
       alarmLatchedRef.current = window.localStorage.getItem(alarmCycleKey) === 'true';
+      notificationCycleRef.current = {
+        emptyLatched: window.localStorage.getItem(emptyNotificationCycleKey) === 'true',
+        criticalLowLatched:
+          window.localStorage.getItem(criticalLowNotificationCycleKey) === 'true',
+        fullLatched: window.localStorage.getItem(fullNotificationCycleKey) === 'true',
+        almostFullLatched:
+          window.localStorage.getItem(almostFullNotificationCycleKey) === 'true',
+      };
     } catch (storageError) {
-      console.error('Unable to load the tank alarm cycle:', storageError);
-      showToast('Alarm history could not be loaded on this device.');
+      console.error('Unable to load tank alert cycle state:', storageError);
+      showToast('Tank alert history could not be loaded on this device.');
     }
     setAlarmReady(true);
     const audio = new Audio(alarmUrl);

@@ -51,7 +51,10 @@ the broker. Until a safe WSS endpoint and read-only access are configured, the
 deployed dashboard opens but tank readings remain offline.
 
 Browser notifications require permission and are shown only while the app is
-open. Web push while closed needs a push service and trusted sender; the native
-Android home-screen widget is not available to this web app. Vibration and
-background audio depend on browser/device support, and browsers may require a
-user gesture before alarm audio is allowed.
+open. Empty and critically-low notifications are re-armed above 0% and 20%,
+respectively; “almost full” and “tank full” notifications are re-armed below
+90% and 100%. Each notification is shown once until its level threshold is
+crossed out of. Web push while closed needs a push service and trusted sender;
+the native Android home-screen widget is not available to this web app.
+Vibration and background audio depend on browser/device support, and browsers
+may require a user gesture before alarm audio is allowed.

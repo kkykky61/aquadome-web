@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  advanceTankNotificationCycle,
   buildNotificationContent,
   getTankMetrics,
   getTankStatus,
@@ -15,6 +16,61 @@ describe('tank calculations', () => {
       percentText: '57',
     });
     expect(getTankMetrics(200)).toMatchObject({ percent: 104, litres: 2000, percentText: '>100' });
+  });
+
+  it('notifies once at each level status and re-arms after leaving its threshold', () => {
+    let cycle = {
+      emptyLatched: false,
+      criticalLowLatched: false,
+      almostFullLatched: false,
+      fullLatched: false,
+    };
+    const advance = (level: number) => {
+      const result = advanceTankNotificationCycle(cycle, level, true);
+      cycle = result.cycle;
+      return result.notification;
+    };
+
+    expect(advance(0)).toBe('empty');
+    expect(advance(0)).toBeNull();
+    expect(advance(1)).toBe('critical-low');
+    expect(advance(10)).toBeNull();
+    expect(advance(21)).toBeNull();
+    expect(advance(20)).toBe('critical-low');
+    expect(advance(89)).toBeNull();
+    expect(advance(90)).toBe('almost-full');
+    expect(advance(95)).toBeNull();
+    expect(advance(100)).toBe('full');
+    expect(advance(101)).toBeNull();
+    expect(advance(99)).toBeNull();
+    expect(advance(100)).toBe('full');
+    expect(advance(99)).toBeNull();
+    expect(advance(89)).toBeNull();
+    expect(advance(90)).toBe('almost-full');
+    expect(advance(95)).toBeNull();
+    expect(advance(89)).toBeNull();
+    expect(advance(90)).toBe('almost-full');
+    expect(advance(0)).toBe('empty');
+  });
+
+  it('does not latch a threshold while notifications are disabled', () => {
+    const cycle = {
+      emptyLatched: false,
+      criticalLowLatched: false,
+      almostFullLatched: false,
+      fullLatched: false,
+    };
+
+    expect(advanceTankNotificationCycle(cycle, 100, false)).toMatchObject({
+      cycle: {
+        emptyLatched: false,
+        criticalLowLatched: false,
+        almostFullLatched: false,
+        fullLatched: false,
+      },
+      notification: null,
+    });
+    expect(advanceTankNotificationCycle(cycle, 100, true).notification).toBe('full');
   });
 
   it('handles timestamp seconds, milliseconds, invalid clocks, and future clocks', () => {
