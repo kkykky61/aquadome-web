@@ -23,6 +23,9 @@ const username = import.meta.env.VITE_MQTT_USERNAME ?? '';
 const password = import.meta.env.VITE_MQTT_PASSWORD ?? '';
 const topic = import.meta.env.VITE_MQTT_TOPIC?.trim() || 'water_tank/telemetry';
 const alarmCycleKey = 'tank_full_alarm_cycle_latched';
+const missingConfigMessage = import.meta.env.DEV
+  ? 'Set VITE_MQTT_URL in your local .env file to connect'
+  : 'Live tank connection is not configured';
 
 function useTankConnection(
   onReading: (reading: SensorReading) => void,
@@ -50,7 +53,7 @@ function useTankConnection(
 
     if (!brokerUrl) {
       setState('offline');
-      setError('Set VITE_MQTT_URL in your local .env file to connect');
+      setError(missingConfigMessage);
       return;
     }
 

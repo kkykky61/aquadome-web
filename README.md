@@ -6,6 +6,9 @@ calculation, stale-reading status, reconnection, and a persistent full-tank
 alarm cycle. The Flutter app is maintained separately in the sibling
 `water_tank_monitor_modern` folder.
 
+Live site: <https://kkykky61.github.io/aquadome-web/> ·
+Source: <https://github.com/kkykky61/aquadome-web>
+
 ## Run locally
 
 Requirements: Node.js 20.19 or newer.
@@ -44,7 +47,8 @@ password as Actions secrets for this static client: the values would be
 included in publicly downloadable browser JavaScript. To show live readings on
 the public site, use a broker account with public read-only access restricted
 to the telemetry topic, or put a trusted backend relay between the website and
-the broker.
+the broker. Until a safe WSS endpoint and read-only access are configured, the
+deployed dashboard opens but tank readings remain offline.
 
 Browser notifications require permission and are shown only while the app is
 open. Web push while closed needs a push service and trusted sender; the native
